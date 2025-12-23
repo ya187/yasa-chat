@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Hacker Chat</title>
+
+<style>
+:root {
+  --bg: #0a0f0a;
+  --panel: #0f1a0f;
+  --green: #00ff88;
+  --text: #caffdd;
+}
+
+* { box-sizing: border-box; font-family: monospace; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+#app {
+  width: 100%;
+  max-width: 800px;
+  height: 90vh;
+  background: var(--panel);
+  border: 1px solid var(--green);
+  display: flex;
+  flex-direction: column;
+}
+
+header {
+  padding: 10px;
+  border-bottom: 1px solid var(--green);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+button {
+  background: transparent;
+  color: var(--green);
+  border: 1px solid var(--green);
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+button:hover {
+  background: var(--green);
+  color: #000;
+}
+
+#messages {
+  flex: 1;
+  padding: 10px;
+  overflow-y: auto;
+}
+
+.msg {
+  margin-bottom: 8px;
+}
+
+.msg span {
+  color: var(--green);
+}
+
+form {
+  display: flex;
+  border-top: 1px solid var(--green);
+}
+
+input {
+  flex: 1;
+  padding: 10px;
+  background: #000;
+  border: none;
+  color: var(--text);
+  outline: none;
+}
+
+@media (max-width: 600px) {
+  #app { height: 100vh; border: none; }
+}
+</style>
+</head>
+
+<body>
+<div id="app">
+  <header>
+    <div id="user">Not logged in</div>
+    <button id="login">Login Google</button>
+    <button id="logout" style="display:none;">Logout</button>
+  </header>
+
+  <div id="messages"></div>
+
+  <form id="chatForm" style="display:none;">
+    <input id="messageInput" placeholder="type message..." autocomplete="off"/>
+  </form>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } 
+  from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+import { getFirestore, collection, addDoc, serverTimestamp, query, orderBy, onSnapshot } 
+  from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAGS_00EGf85mU36rN6_J_3JEAsxvMzn5g",
+  authDomain: "universal-databases.firebaseapp.com",
+  projectId: "universal-databases",
+  storageBucket: "universal-databases.firebasestorage.app",
+  messagingSenderId: "238780443230",
+  appId: "1:238780443230:web:2286f232844108e53de2cf",
+  measurementId: "G-8TL3PKL1WL"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const provider = new GoogleAuthProvider();
+
+const loginBtn = document.getElementById("login");
+const logoutBtn = document.getElementById("logout");
+const userDiv = document.getElementById("user");
+const chatForm = document.getElementById("chatForm");
+const input = document.getElementById("messageInput");
+const messagesDiv = document.getElementById("messages");
+
+loginBtn.onclick = () => signInWithPopup(auth, provider);
+logoutBtn.onclick = () => signOut(auth);
+
+onAuthStateChanged(auth, user => {
+  if (user) {
+    userDiv.textContent = user.displayName;
+    loginBtn.style.display = "none";
+    logoutBtn.style.display = "inline-block";
+    chatForm.style.display = "flex";
+    loadMessages();
+  } else {
+    userDiv.textContent = "Not logged in";
+    loginBtn.style.display = "inline-block";
+    logoutBtn.style.display = "none";
+    chatForm.style.display = "none";
+    messagesDiv.innerHTML = "";
+  }
+});
+
+chatForm.addEventListener("submit", async e => {
+  e.preventDefault();
+  if (!input.value.trim()) return;
+
+  await addDoc(collection(db, "messages"), {
+    text: input.value,
+    user: auth.currentUser.displayName,
+    time: serverTimestamp()
+  });
+
+  input.value = "";
+});
+
+function loadMessages() {
+  const q = query(collection(db, "messages"), orderBy("time"));
+  onSnapshot(q, snap => {
+    messagesDiv.innerHTML = "";
+    snap.forEach(doc => {
+      const d = doc.data();
+      const div = document.createElement("div");
+      div.className = "msg";
+      div.innerHTML = `<span>${d.user}:</span> ${d.text}`;
+      messagesDiv.appendChild(div);
+    });
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+  });
+}
+</script>
+</body>
+</html>
